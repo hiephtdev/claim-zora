@@ -91,4 +91,4 @@ export async function claimTokens(privateKey: string): Promise<WalletStatus> {
       error: err.message 
     };
   }
-} 
+}
