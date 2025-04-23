@@ -92,3 +92,44 @@ export async function claimTokens(privateKey: string): Promise<WalletStatus> {
     };
   }
 }
+
+// Function to check wallet by address using the read-only provider
+export async function checkWalletByAddress(address: string): Promise<WalletStatus> {
+  try {
+    const provider = new ethers.JsonRpcProvider(RPC_URL);
+    const contract = new ethers.Contract(CLAIM_CONTRACT, ABI, provider);
+    
+    const hasClaimed = await contract.hasClaimed(address);
+    if (hasClaimed) {
+      return { 
+        address: address, 
+        status: 'claimed' 
+      };
+    }
+    
+    const allocation = await contract.allocations(address);
+    if (allocation.toString() !== '0') {
+      return { 
+        address: address, 
+        status: 'eligible',
+        allocation: ethers.formatUnits(allocation, 18) 
+      };
+    } else {
+      return { 
+        address: address, 
+        status: 'no-allocation' 
+      };
+    }
+  } catch (err: any) {
+    return { 
+      address: address, 
+      status: 'error',
+      error: err.message 
+    };
+  }
+}
+
+// For use with web3modal connected wallet
+export function getContract(provider: any) {
+  return new ethers.Contract(CLAIM_CONTRACT, ABI, provider);
+}
