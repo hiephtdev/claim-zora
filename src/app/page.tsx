@@ -16,50 +16,50 @@ export default function Home() {
 
   const handleSubmit = async (walletKeys: string[]) => {
     if (walletKeys.length === 0) return;
-    
+
     setLoading(true);
     setPrivateKeys(walletKeys);
-    
+
     // Create placeholder entries while checking
     const initialStatuses = walletKeys.map(pk => ({
       address: pk.substring(0, 10) + '...',
       status: 'checking' as const
     }));
     setWallets(initialStatuses);
-    
+
     // Check wallets one by one
     const results: WalletStatus[] = [];
-    
+
     for (let i = 0; i < walletKeys.length; i++) {
       const result = await checkWallet(walletKeys[i]);
-      
+
       // Update the status of the current wallet
       results.push(result);
       setWallets([...results, ...initialStatuses.slice(results.length)]);
     }
-    
+
     setLoading(false);
   };
 
   const handleClaim = async (address: string, index: number) => {
     if (index >= privateKeys.length) return;
-    
+
     // Update status to checking
     const updatedWallets = [...wallets];
     updatedWallets[index] = { ...updatedWallets[index], status: 'checking' };
     setWallets(updatedWallets);
-    
+
     try {
       // Perform claim
       const result = await claimTokens(privateKeys[index]);
-      
+
       // Update wallet status
       updatedWallets[index] = result;
       setWallets([...updatedWallets]);
     } catch (error) {
       // Handle error
-      updatedWallets[index] = { 
-        address: address, 
+      updatedWallets[index] = {
+        address: address,
         status: 'error',
         error: error instanceof Error ? error.message : 'Unknown error'
       };
@@ -78,13 +78,13 @@ export default function Home() {
       // This function will be called from the WalletConnect component
       // The actual signing will happen there using Privy's wallet
       setLoading(true);
-      
+
       // Update the UI to show that the wallet is now claimed
       setConnectedWalletStatus({
         address,
         status: 'claimed',
       });
-      
+
     } catch (error) {
       setConnectedWalletStatus({
         address,
@@ -107,41 +107,39 @@ export default function Home() {
             Check your wallets and claim tokens from the Zora contract on Base network.
           </p>
         </div>
-        
+
         {/* Tabs */}
         <div className="bg-white dark:bg-gray-800 shadow-xl rounded-xl border border-gray-100 dark:border-gray-700 max-w-4xl mx-auto mb-6">
           <div className="flex border-b border-gray-200 dark:border-gray-700">
             <button
-              className={`flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm ${
-                activeTab === 'privateKey'
+              className={`flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'privateKey'
                   ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
+                }`}
               onClick={() => setActiveTab('privateKey')}
             >
               Private Keys
             </button>
             <button
-              className={`flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm ${
-                activeTab === 'wallet'
+              className={`flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'wallet'
                   ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
+                }`}
               onClick={() => setActiveTab('wallet')}
             >
               Connect Wallet
             </button>
           </div>
         </div>
-        
+
         {activeTab === 'privateKey' ? (
           <div className="bg-white dark:bg-gray-800 shadow-xl rounded-xl p-8 max-w-4xl mx-auto border border-gray-100 dark:border-gray-700">
             <WalletForm onSubmit={handleSubmit} isLoading={loading} />
-            
-            <WalletList 
-              wallets={wallets} 
-              onClaim={handleClaim} 
-              loading={loading} 
+
+            <WalletList
+              wallets={wallets}
+              onClaim={handleClaim}
+              loading={loading}
             />
           </div>
         ) : (
@@ -152,10 +150,13 @@ export default function Home() {
             isLoading={loading}
           />
         )}
-        
+
         <div className="mt-10 text-center text-sm text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
           <p className="font-medium">This tool checks and claims ZORA tokens from the Base network contract.</p>
           <p className="mt-2">Your private keys are processed locally and never sent to any server.</p>
+          <p className="mt-2 text-sm text-gray-500">
+            Built by <a href="https://x.com/hiepht_dev" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700">@hiepht_dev</a>
+          </p>
         </div>
       </div>
     </main>
