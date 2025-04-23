@@ -1,103 +1,96 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import WalletForm from "./components/WalletForm";
+import WalletList from "./components/WalletList";
+import { WalletStatus, checkWallet, claimTokens } from "./utils/claim";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [wallets, setWallets] = useState<WalletStatus[]>([]);
+  const [privateKeys, setPrivateKeys] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleSubmit = async (walletKeys: string[]) => {
+    if (walletKeys.length === 0) return;
+    
+    setLoading(true);
+    setPrivateKeys(walletKeys);
+    
+    // Create placeholder entries while checking
+    const initialStatuses = walletKeys.map(pk => ({
+      address: pk.substring(0, 10) + '...',
+      status: 'checking' as const
+    }));
+    setWallets(initialStatuses);
+    
+    // Check wallets one by one
+    const results: WalletStatus[] = [];
+    
+    for (let i = 0; i < walletKeys.length; i++) {
+      const result = await checkWallet(walletKeys[i]);
+      
+      // Update the status of the current wallet
+      results.push(result);
+      setWallets([...results, ...initialStatuses.slice(results.length)]);
+    }
+    
+    setLoading(false);
+  };
+
+  const handleClaim = async (address: string, index: number) => {
+    if (index >= privateKeys.length) return;
+    
+    // Update status to checking
+    const updatedWallets = [...wallets];
+    updatedWallets[index] = { ...updatedWallets[index], status: 'checking' };
+    setWallets(updatedWallets);
+    
+    try {
+      // Perform claim
+      const result = await claimTokens(privateKeys[index]);
+      
+      // Update wallet status
+      updatedWallets[index] = result;
+      setWallets([...updatedWallets]);
+    } catch (error) {
+      // Handle error
+      updatedWallets[index] = { 
+        address: address, 
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+      setWallets([...updatedWallets]);
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-indigo-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <div className="max-w-3/6 mx-auto py-10 px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-extrabold text-indigo-800 dark:text-indigo-400 sm:text-5xl tracking-tight">
+            Zora Claim Tool
+          </h1>
+          <p className="mt-4 max-w-xl mx-auto text-base text-gray-600 dark:text-gray-300 sm:text-lg">
+            Check your wallets and claim tokens from the Zora contract on Base network.
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        
+        <div className="bg-white dark:bg-gray-800 shadow-xl rounded-xl p-8 max-w-4xl mx-auto border border-gray-100 dark:border-gray-700">
+          <WalletForm onSubmit={handleSubmit} isLoading={loading} />
+          
+          <WalletList 
+            wallets={wallets} 
+            onClaim={handleClaim} 
+            loading={loading} 
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        </div>
+        
+        <div className="mt-10 text-center text-sm text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          <p className="font-medium">This tool checks and claims ZORA tokens from the Base network contract.</p>
+          <p className="mt-2">Your private keys are processed locally and never sent to any server.</p>
+          <p className="mt-2">Publish by <a href="https://x.com/hiepht_dev" className="text-indigo-600 hover:text-indigo-700">@hiepht_dev</a></p>
+        </div>
+      </div>
+    </main>
   );
 }
